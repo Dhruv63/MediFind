@@ -1,0 +1,154 @@
+const SHEET_ID = '1CF2P3T8prKh6VClrA8xJkzrPaa02GEGdJ_Cdeb7sMwI';
+        let userMarker;
+        let hospitalMarkers = [];
+        const map = L.map('map').setView([19.3838, 72.8235], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        // Fetch hospitals from Google Sheet
+        async function fetchHospitals() {
+            try {
+                const response = await fetch(`https://docs.google.com/spreadsheets/d/e/2PACX-1vSwFgGwOZj-QkJQgu2kZGbcX4s-f19u4yoy1Iy2wxVlaeemJcWaUFuCjV-J5Xd4nBDsiMS3DId3K8kJ/pub?gid=351600451&single=true&output=csv`);
+                const csv = await response.text();
+                return Papa.parse(csv, { header: true }).data.map(row => ({
+                    name: row.name,
+                    location: [parseFloat(row.lat), parseFloat(row.lng)],
+                    available_beds: parseInt(row.beds),
+                    emergency: row.emergency === 'TRUE',
+                    phone: row.phone
+                }));
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                return [];
+            }
+        }
+
+        // Initialize hospital markers
+        async function initHospitalMarkers() {
+            const hospitals = await fetchHospitals();
+            
+            // Clear existing markers
+            hospitalMarkers.forEach(marker => map.removeLayer(marker));
+            hospitalMarkers = [];
+
+            hospitals.forEach(hospital => {
+                const color = hospital.available_beds > 0 ? 'green' : 'red';
+                const marker = L.marker(hospital.location, {
+                    icon: L.icon({
+                        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41]
+                    })
+                }).addTo(map);
+                
+                marker.bindPopup(`
+                    <b>${hospital.name}</b><br>
+                    Beds: ${hospital.available_beds}<br>
+                    Emergency: ${hospital.emergency ? 'Yes' : 'No'}
+                `);
+                
+                hospitalMarkers.push(marker);
+            });
+        }
+
+        // Update user location marker
+        function updateUserMarker(latlng) {
+            if (userMarker) map.removeLayer(userMarker);
+            userMarker = L.marker(latlng, {
+                icon: L.divIcon({
+                    className: 'user-location-marker',
+                    html: '<div class="user-location-marker"></div>',
+                    iconSize: [16, 16]
+                })
+            }).addTo(map);
+            map.setView(latlng, 14);
+        }
+
+        // Geocode address search
+        async function searchLocation() {
+            const query = document.getElementById('locationSearch').value;
+            if (!query) return;
+
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                if (data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lon = parseFloat(data[0].lon);
+                    updateUserMarker([lat, lon]);
+                }
+            } catch (error) {
+                alert("Location not found");
+            }
+        }
+
+        // Get current location
+        function getLocation() {
+            navigator.geolocation.getCurrentPosition(position => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                updateUserMarker([lat, lon]);
+                document.getElementById('locationSearch').value = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+            }, () => alert("Location access denied"));
+        }
+
+        // Find nearest hospital
+        async function findNearestHospital() {
+            if (!userMarker) {
+                alert("Please share your location first");
+                return;
+            }
+
+            const hospitals = await fetchHospitals();
+            const userLocation = userMarker.getLatLng();
+            
+            const nearest = hospitals
+                .filter(h => h.available_beds > 0)
+                .map(h => ({
+                    ...h,
+                    distance: map.distance(userLocation, h.location)
+                }))
+                .sort((a, b) => a.distance - b.distance)[0];
+
+            if (nearest) {
+                alert(`Nearest Hospital: ${nearest.name} (${(nearest.distance/1000).toFixed(2)} km away)`);
+                map.setView(nearest.location, 15);
+                hospitalMarkers.find(m => m.getLatLng().equals(nearest.location))?.openPopup();
+            }
+        }
+
+        // Render hospital list
+        async function renderHospitals() {
+            const hospitals = await fetchHospitals();
+            const container = document.getElementById('hospitalList');
+            
+            container.innerHTML = hospitals.map(hospital => `
+                <div class="hospital-card">
+                    <div class="hospital-info">
+                        <h3>${hospital.name}</h3>
+                        <div class="flex items-center gap-1 text-gray-500">
+                            <span class="lucide lucide-map-pin"></span>
+                            ${userMarker 
+                                ? (map.distance(userMarker.getLatLng(), hospital.location)/1000).toFixed(2) 
+                                : 'Location not set'} km away
+                        </div>
+                        <p>Beds Available: ${hospital.available_beds}</p>
+                        <p class="${hospital.emergency ? 'emergency-yes' : 'emergency-no'}">
+                            ${hospital.emergency ? 'Emergency Services Available' : 'No Emergency Services'}
+                        </p>
+                    </div>
+                    <a href="tel:${hospital.phone}" class="call-button">
+                        <span class="lucide lucide-phone"></span>
+                        Call
+                    </a>
+                </div>
+            `).join('');
+        }
+
+        // Initialize everything
+        async function init() {
+            lucide.createIcons();
+            await initHospitalMarkers();
+            await renderHospitals();
+        }
+
+        init();
