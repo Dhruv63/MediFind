@@ -1,4 +1,4 @@
-{ %load static% }
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +7,8 @@
     <title>Hospital Bed Tracker</title>
     <link href="https://unpkg.com/lucide@latest" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="{% static 'static/stylesheet/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+    <script src="{% static 'scripts.js' %}"></script>
 </head>
 <body>
     <h1>Hospital Bed Availability</h1>
@@ -29,5 +30,6 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://nominatim.openstreetmap.org/ui/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+
 </body>
 </html>
