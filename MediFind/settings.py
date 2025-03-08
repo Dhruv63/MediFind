@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'core',
 ]
 
 MIDDLEWARE = [
@@ -77,7 +78,7 @@ WSGI_APPLICATION = 'MediFind.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'DBNAME' : 'postgres',
+        'NAME' : 'postgres',
         'USER' : 'postgres.qelvcbcwlwzaqlcrcdrw', 
         'PASSWORD' : 'Bhaumik13122004@',
         'HOST' : 'aws-0-ap-south-1.pooler.supabase.com',
